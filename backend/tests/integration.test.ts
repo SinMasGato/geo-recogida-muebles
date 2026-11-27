@@ -152,4 +152,61 @@ describe('Integración Backend: Auth, PostGIS y Reserva Atómica', () => {
     expect(statuses[1]).toBe(409);
 
   });
+  it('sube una imagen PNG válida mediante storageProvider y rechaza archivos falsos (Magic Bytes)', async () => {
+    const user = await registerAndLogin('media');
+
+    // Cabecera binaria real de un PNG (16 bytes: firma PNG + inicio de chunk IHDR)
+    const validPng = Buffer.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+    ]);
+
+    // 1. Solicitar URL prefirmada para imagen válida
+    const presignRes = await api()
+      .post('/api/media/presign')
+      .set('Authorization', `Bearer ${user.accessToken}`)
+      .send({
+        contentType: 'image/png',
+        sizeBytes: validPng.length,
+      });
+
+    expect([200, 201]).toContain(presignRes.status);
+    const uploadUrl: string = presignRes.body?.data?.uploadUrl ?? presignRes.body?.uploadUrl;
+    const photoUrl: string = presignRes.body?.data?.photoUrl ?? presignRes.body?.photoUrl;
+    expect(uploadUrl).toBeTruthy();
+    expect(photoUrl).toContain('/pins/');
+
+    // Extraemos solo la ruta (/api/media/upload/:token) para enviarla con Supertest
+    const uploadPath = new URL(uploadUrl).pathname;
+
+    // 2. Subir el binario válido
+    const uploadRes = await api()
+      .put(uploadPath)
+      .set('Content-Type', 'image/png')
+      .send(validPng);
+
+    expect([200, 201]).toContain(uploadRes.status);
+
+    // 3. Seguridad: intentar subir texto plano disfrazado de PNG
+    const fakeBuffer = Buffer.from('esto no es un archivo png real');
+    const fakePresignRes = await api()
+      .post('/api/media/presign')
+      .set('Authorization', `Bearer ${user.accessToken}`)
+      .send({
+        contentType: 'image/png',
+        sizeBytes: fakeBuffer.length,
+      });
+
+    expect([200, 201]).toContain(fakePresignRes.status);
+    const fakeUploadUrl: string =
+      fakePresignRes.body?.data?.uploadUrl ?? fakePresignRes.body?.uploadUrl;
+    const fakeUploadPath = new URL(fakeUploadUrl).pathname;
+
+    const fakeUploadRes = await api()
+      .put(fakeUploadPath)
+      .set('Content-Type', 'image/png')
+      .send(fakeBuffer);
+
+    expect(fakeUploadRes.status).toBe(400);
+  });
 });

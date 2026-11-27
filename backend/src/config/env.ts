@@ -30,7 +30,27 @@ const envSchema = z.object({
   MAX_ACTIVE_RESERVATIONS_PER_USER: z.coerce.number().int().positive().default(2),
   MEDIA_PUBLIC_BASE_URL: z.string().url().default('http://localhost:4000/uploads'),
   CLEANUP_INTERVAL_SECONDS: z.coerce.number().int().min(15).default(60),
+  STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
+  S3_ENDPOINT: z.string().url().optional(),
+  S3_REGION: z.string().default('auto'),
+  S3_BUCKET: z.string().min(1).optional(),
+  S3_ACCESS_KEY_ID: z.string().min(1).optional(),
+  S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+}).superRefine((data, ctx) => {
+  if (data.STORAGE_DRIVER === 's3') {
+    const required = ['S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const;
+    for (const key of required) {
+      if (!data[key]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: `${key} es obligatorio cuando STORAGE_DRIVER=s3`,
+        });
+      }
+    }
+  }
 });
+
 
 const parsed = envSchema.safeParse(process.env);
 
