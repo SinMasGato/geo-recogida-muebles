@@ -1,6 +1,5 @@
 import crypto from 'crypto';
-import fs from 'fs/promises';
-import path from 'path';
+import { storageProvider } from './storage.provider';
 import { env } from '../../config/env';
 import { AppError } from '../../utils/AppError';
 import {
@@ -18,7 +17,7 @@ interface UploadTicket {
 }
 
 const TICKET_TTL_MS = 120_000; // 2 minutos para completar la subida
-const UPLOADS_ROOT = path.resolve(process.cwd(), 'uploads');
+
 
 const MIME_TO_EXT: Record<AllowedImageMime, string> = {
   'image/jpeg': 'jpg',
@@ -138,14 +137,8 @@ class MediaService {
       );
     }
 
-    const absolutePath = path.resolve(UPLOADS_ROOT, ticket.relativePath);
-    // Protección extra contra Path Traversal
-    if (!absolutePath.startsWith(UPLOADS_ROOT + path.sep)) {
-      throw new AppError('Ruta de destino no permitida', 403);
-    }
-
-    await fs.mkdir(path.dirname(absolutePath), { recursive: true });
-    await fs.writeFile(absolutePath, buffer);
+ 
+    await storageProvider.save(ticket.relativePath, buffer, ticket.contentType);
 
     const basePublicUrl = env.MEDIA_PUBLIC_BASE_URL.replace(/\/+$/, '');
     return {
@@ -169,12 +162,11 @@ class MediaService {
       throw new AppError('Formato de nombre de imagen inválido', 400);
     }
 
-    const absolutePath = path.resolve(UPLOADS_ROOT, 'pins', userId, fileName);
-    try {
-      await fs.access(absolutePath);
-    } catch {
-      throw new AppError('La imagen declarada todavía no se ha subido al servidor', 400);
-    }
+    const relativePath = `pins/${userId}/${fileName}`;
+const exists = await storageProvider.exists(relativePath);
+if (!exists) {
+  throw new AppError('La imagen declarada todavía no se ha subido al servidor', 400);
+}
   }
 }
 
