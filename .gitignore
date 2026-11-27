@@ -1,0 +1,18 @@
+# Secretos y entorno local
+.env
+.env.*
+!.env.example
+
+# Dependencias y artefactos compilados
+node_modules/
+dist/
+build/
+
+# Logs y archivos del sistema operativo
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Fotos subidas en desarrollo local
+backend/uploads/

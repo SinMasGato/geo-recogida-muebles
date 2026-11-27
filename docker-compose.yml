@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: geo_muebles_postgis
+    restart: unless-stopped
+    shm_size: 256mb
+    environment:
+      POSTGRES_DB: ${DB_NAME:-geo_muebles}
+      POSTGRES_USER: ${DB_USER:-geo_app}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme_dev_password}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+      - ./backend/database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-geo_app} -d ${DB_NAME:-geo_muebles}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgis_data:

@@ -1,0 +1,10 @@
+{
+  "name": "ReMueble - Rescate Urbano",
+  "short_name": "ReMueble",
+  "description": "Reporta y recoge muebles y objetos cerca de contenedores en tiempo real.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#0f766e"
+}
